@@ -20,6 +20,13 @@ async def websocket_endpoint(websocket: WebSocket):
     silence_counter = 0
     silence_threshold = 2
 
+    try:
+        language_message = await websocket.receive_text()
+        language = json.loads(language_message).get("language", "ru")
+    except Exception as e:
+        print(f"Ошибка получения языка: {e}")
+        language = "ru"
+
     async def transcription_loop():
         nonlocal collecting_speech, silence_counter, audio_accumulated
 
@@ -50,20 +57,19 @@ async def websocket_endpoint(websocket: WebSocket):
                     full_audio = np.concatenate(audio_accumulated)
 
                     result_text = transcribe(full_audio)
-                    await websocket.send_text(json.dumps({"result": result_text}))
                     print(f"Распознанный текст: {result_text}")
+                    await websocket.send_text(json.dumps({"result": result_text}))
 
-                    translated_text = translate(result_text, "eng")
+                    translated_text = translate(result_text, f'{"eng" if language == "en" else language}')
+                    print(f"Перевод: {translated_text}")
                     await websocket.send_text(json.dumps({"translation": translated_text}))
 
                     if translated_text.strip():
                         try:
                             print(f"Переведенный текст: {translated_text}")
-                            tts_langs("en", translated_text)
-                        except ValueError:
-                            print(f"Ошибка в TTS. Возможно, некорректный текст: {translated_text}")
-                    else:
-                        print("Перевод пустой, TTS пропускается.")
+                            tts_langs(language, translated_text)
+                        except ValueError as e:
+                            print(f"Ошибка в TTS: {e}")
 
                     audio_accumulated = []
 
@@ -76,9 +82,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 audio_buffer.extend(message["bytes"])
     except WebSocketDisconnect:
         transcription_task.cancel()
-        print("Клиент отключился.")
-    except RuntimeError as e:
-        print(f"Ошибка WebSocket: {e}")
 
 
 if __name__ == "__main__":
