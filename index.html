@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Клиент для стриминга аудио</title>
+</head>
+<body>
+  <h1>Аудио стриминг</h1>
+  <button id="start">Начать запись</button>
+  <button id="stop" disabled>Остановить запись</button>
+
+  <script>
+    let ws;
+    let audioContext;
+    let processor;
+    let sourceNode;
+
+    document.getElementById("start").onclick = async function() {
+      // Открываем WebSocket-соединение
+      ws = new WebSocket("ws://localhost:8000/ws");
+      ws.binaryType = "arraybuffer";
+      ws.onopen = function() {
+        console.log("Соединение WebSocket открыто");
+      };
+
+      ws.onmessage = function(event) {
+        // Получаем JSON с результатом транскрипции
+        const data = JSON.parse(event.data);
+        if (data.result) {
+          console.log("Распознанный текст:", data.result);
+        }
+      };
+
+      // Создаём AudioContext с частотой 16 кГц
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 16000});
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      sourceNode = audioContext.createMediaStreamSource(stream);
+
+      // Создаём ScriptProcessor для отправки «сырых» аудиоданных
+      processor = audioContext.createScriptProcessor(4096, 1, 1);
+      processor.onaudioprocess = function(e) {
+        const inputData = e.inputBuffer.getChannelData(0);
+        let buffer = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          let s = Math.max(-1, Math.min(1, inputData[i]));
+          buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        // Отправляем бинарные данные через WebSocket
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(buffer.buffer);
+        }
+      };
+
+      // Соединяем узлы аудиодерева
+      sourceNode.connect(processor);
+      processor.connect(audioContext.destination);
+
+      document.getElementById("start").disabled = true;
+      document.getElementById("stop").disabled = false;
+    };
+
+    document.getElementById("stop").onclick = function() {
+      // Останавливаем обработку аудио
+      if (processor) {
+        processor.disconnect();
+      }
+      if (sourceNode) {
+        sourceNode.disconnect();
+      }
+      if (audioContext) {
+        audioContext.close();
+      }
+      // Закрываем WebSocket-соединение
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+      document.getElementById("start").disabled = false;
+      document.getElementById("stop").disabled = true;
+    };
+  </script>
+</body>
+</html>
