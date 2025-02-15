@@ -36,38 +36,33 @@ language_configs = {
 
 models = {}
 
-# Загрузка моделей
-for lang, cfg in language_configs.items():
-    print(f"Загружаем модель для языка '{lang}' ({cfg['version']})...")
-    start_load_time = time.perf_counter()
-    model, _ = torch.hub.load(
-        'snakers4/silero-models',
-        'silero_tts',
-        language=cfg["language"],
-        speaker=cfg["version"]
-    )
-    load_time = time.perf_counter() - start_load_time
-    print(f"Модель для языка '{lang}' загружена за {load_time:.2f} сек.")
-    models[lang] = model
 
-# Прогрев моделей (генерация простого текста 3 раза)
-for lang, cfg in language_configs.items():
-    model = models[lang]
-    warmup_text = "Прогрев модели" if lang == "ru" else "Warmup model"
-    print(f"\nПрогрев модели для языка '{lang}'...")
-    for i in range(3):
-        start_warmup_time = time.perf_counter()
-        _ = model.apply_tts(
-            text=warmup_text,
-            speaker=cfg["speaker"],
-            sample_rate=cfg["sample_rate"]
+def load_and_warmup_models():
+    for lang, cfg in language_configs.items():
+        print(f"Загружаем модель для языка '{lang}' ({cfg['version']})...")
+        start_load_time = time.perf_counter()
+        model, _ = torch.hub.load(
+            'snakers4/silero-models',
+            'silero_tts',
+            language=cfg["language"],
+            speaker=cfg["version"]
         )
-        warmup_time = time.perf_counter() - start_warmup_time
-        print(f"[{i + 1}/3] Прогрев для '{lang}' завершён за {warmup_time:.2f} сек.")
+        load_time = time.perf_counter() - start_load_time
+        print(f"Модель для языка '{lang}' загружена за {load_time:.2f} сек.")
+        models[lang] = model
 
+        warmup_text = "Прогрев модели" if lang == "ru" else "Warmup model"
+        print(f"\nПрогрев модели для языка '{lang}'...")
+        for i in range(3):
+            start_warmup_time = time.perf_counter()
+            _ = model.apply_tts(
+                text=warmup_text,
+                speaker=cfg["speaker"],
+                sample_rate=cfg["sample_rate"]
+            )
+            warmup_time = time.perf_counter() - start_warmup_time
+            print(f"[{i + 1}/3] Прогрев для '{lang}' завершён за {warmup_time:.2f} сек.")
 
-print(models)
-print(language_configs)
 
 def tts_langs(language, text):
     model_my = models[language]
@@ -83,8 +78,12 @@ def tts_langs(language, text):
     print(f"Аудио для языка '{language}' сгенерировано за {gen_time:.2f} сек.")
 
     print("Воспроизведение аудио...")
-    sd.play(np.array(audio), samplerate=cfg["sample_rate"])
+    sd.play(np.array(audio), samplerate=config["sample_rate"])
     sd.wait()
 
 
+# Вызов загрузки и прогрева моделей
+load_and_warmup_models()
+
+# Пример использования
 tts_langs("ru", "Что-то надо думать")
