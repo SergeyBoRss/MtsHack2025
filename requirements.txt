@@ -27,3 +27,4 @@ onnxruntime
 sentencepiece
 safetensors
 omegaconf
+soundfile
