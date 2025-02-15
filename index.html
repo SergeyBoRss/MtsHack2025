@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Клиент для стриминга аудио</title>
+</head>
+<body>
+<h1>Аудио стриминг</h1>
+
+<label for="language">Выберите язык перевода:</label>
+<select id="language">
+    <option value="en">Английский</option>
+    <option value="ru">Русский</option>
+    <option value="fr">Французский</option>
+    <option value="sp">Испанский</option>
+</select>
+
+<button id="start">Начать запись</button>
+<button id="stop" disabled>Остановить запись</button>
+
+<div id="transcription-result"></div>
+<div id="translation-result"></div>
+
+<script>
+    let ws;
+    let audioContext;
+    let processor;
+    let sourceNode;
+
+    document.getElementById("start").onclick = async function () {
+        const selectedLanguage = document.getElementById("language").value;
+
+        ws = new WebSocket("ws://localhost:8000/ws");
+        ws.binaryType = "arraybuffer";
+
+        ws.onopen = function () {
+            console.log("Соединение WebSocket открыто");
+            ws.send(JSON.stringify({ language: selectedLanguage }));
+        };
+
+        ws.onmessage = function (event) {
+            const data = JSON.parse(event.data);
+
+            if (data.result) {
+                console.log("Распознанный текст:", data.result);
+                document.getElementById("transcription-result").innerText = "Субтитры: " + data.result;
+            }
+
+            if (data.translation) {
+                console.log("Перевод:", data.translation);
+                document.getElementById("translation-result").innerText = "Перевод: " + data.translation;
+            }
+        };
+
+        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        sourceNode = audioContext.createMediaStreamSource(stream);
+
+        processor = audioContext.createScriptProcessor(4096, 1, 1);
+        processor.onaudioprocess = function (e) {
+            const inputData = e.inputBuffer.getChannelData(0);
+            let buffer = new Int16Array(inputData.length);
+            for (let i = 0; i < inputData.length; i++) {
+                let s = Math.max(-1, Math.min(1, inputData[i]));
+                buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(buffer.buffer);
+            }
+        };
+
+        sourceNode.connect(processor);
+        processor.connect(audioContext.destination);
+
+        document.getElementById("start").disabled = true;
+        document.getElementById("stop").disabled = false;
+    };
+
+    document.getElementById("stop").onclick = function () {
+        if (processor) processor.disconnect();
+        if (sourceNode) sourceNode.disconnect();
+        if (audioContext) audioContext.close();
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+
+        document.getElementById("start").disabled = false;
+        document.getElementById("stop").disabled = true;
+    };
+</script>
+</body>
+</html>
