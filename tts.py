@@ -43,6 +43,15 @@ def load_and_warmup_models():
         )
         models[lang] = model
 
+        # Прогрев модели
+        warmup_text = "Прогрев модели" if lang == "ru" else "Warmup model"
+        for _ in range(3):
+            _ = model.apply_tts(
+                text=warmup_text,
+                speaker=cfg["speaker"],
+                sample_rate=cfg["sample_rate"]
+            )
+
 
 def tts_langs(language, text):
     model_my = models[language]
