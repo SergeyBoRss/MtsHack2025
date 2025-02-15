@@ -7,6 +7,15 @@ import uvicorn
 from transformers import pipeline
 pipe = pipeline("translation", model="Helsinki-NLP/opus-mt-tc-bible-big-mul-mul")
 
+def translate_progrev():
+    for i in range(10):
+        res = pipe(">>eng<< Привет, как дела?", max_length=1024)
+        res = pipe(">>rus<< Hello, how're you?", max_length=1024)
+
+def translate(result, lang):
+    result_tranlate = pipe(f">>{lang}<< " + result, max_length=1024)
+    return result_tranlate
+
 app = FastAPI()
 
 @app.websocket("/ws")
@@ -14,7 +23,9 @@ async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     audio_buffer = bytearray()
     print("Клиент подключился, жду аудиоданные...")
-
+    print("Начинаю прогрев:")
+    translate_progrev()
+    print("Прогрев завершен!")
     async def transcription_loop():
         while True:
             await asyncio.sleep(3)  # интервал между транскрипциями (настройте по необходимости)
@@ -30,8 +41,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     path_or_hf_repo="mlx-community/whisper-large-v3-turbo"
                 )["text"]
                 print("Распознанный текст:", result)
-                result_tranlate = pipe(">>eng<< "+ result, max_length=1024)
-                print("Переведенный текст:", result_tranlate[0]['translation_text'])
+                #result_tranlate = pipe(">>eng<< "+ result, max_length=1024)
+                result_translate = translate(result, "en")
+                print("Переведенный текст:", result_translate[0]['translation_text'])
 
                 # Отправляем результат клиенту в виде JSON
                 await websocket.send_text(json.dumps({"result": result}))
