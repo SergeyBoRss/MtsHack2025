@@ -66,7 +66,6 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     if translated_text.strip():
                         try:
-                            print(f"Переведенный текст: {translated_text}")
                             tts_langs(language, translated_text)
                         except ValueError as e:
                             print(f"Ошибка в TTS: {e}")
