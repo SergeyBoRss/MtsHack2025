@@ -1,0 +1,67 @@
+body {
+    background-color: #f8f9fa;
+    font-family: Arial, sans-serif;
+}
+
+#remoteVideo {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    border: 2px solid #000;
+    border-radius: 10px;
+}
+
+#localVideo {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background-color: #000;
+    border: 2px solid #000;
+    border-radius: 10px;
+}
+
+.font-size-controls button {
+    width: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+}
+
+.font-size-controls button i {
+    margin-right: 3px;
+}
+
+.controls {
+    display: flex;
+    justify-content: start;
+}
+
+.increaseFontSize {
+    font-size: large;
+    font-weight: bold;
+}
+
+.controls button {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+}
+
+.subtitles {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #fff;
+    height: 150px;
+    overflow-y: auto;
+}
+
+#subtitlesText {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.font-size-controls {
+    margin-top: 10px;
+}
